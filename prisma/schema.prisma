@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model location {
+  id           String       @id @default(uuid())
+  level        Int
+  name         String
+  iso3         String
+  admin1       String?
+  admin2       String?
+  admin3       String?
+  latitude     Float?
+  longitude    Float?
+  population   Int?
+  hindexes     String[]
+  data         covid_data[]
+
+  @@unique([id, level])
+}
+
+model covid_data {
+  id          String   @id @default(uuid())
+  location_id String
+  date        DateTime @db.Date
+  deaths      Int?
+  hosp        Int?
+  location    location @relation(fields: [location_id], references: [id])
+  @@unique([location_id, date])
+}
+
+model task {
+  id          String        @id @default(uuid())
+  name        String
+  data        Json
+  source      String?
+  frequency   Int?
+  created_at  DateTime      @default(now())
+  claimed_at  DateTime?
+  done_at     DateTime?
+  task_action task_action[]
+}
+
+model task_action {
+  id        String   @id @default(uuid())
+  task_id   String
+  task      task     @relation(fields: [task_id], references: [id])
+  event     String
+  data      Json?
+  source    String
+  createdAt DateTime @default(now())
+}
