@@ -8,6 +8,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CountryModule } from './country/country.module';
 import { GeojsonModule } from './geojson/geojson.module';
+import { StateModule } from './state/state.module';
 
 const REDIS = { host: 'localhost', port: 6379 };
 @Module({
@@ -21,6 +22,7 @@ const REDIS = { host: 'localhost', port: 6379 };
     PrismaModule,
     CountryModule,
     GeojsonModule,
+    StateModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

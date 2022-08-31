@@ -7,7 +7,13 @@ export class GeojsonController {
 
   @Get('country.json')
   @Header('Content-Type', 'application/json')
-  getCountry() {
+  getState() {
     return this.geojsonService.country();
+  }
+
+  @Get('state.json')
+  @Header('Content-Type', 'application/json')
+  getCountry() {
+    return this.geojsonService.state();
   }
 }

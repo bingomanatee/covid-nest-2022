@@ -19,15 +19,4 @@ export class CountryController {
   summary() {
     return this.countryService.summary();
   }
-  /*  @Get()
-  findAll() {
-    return this.countryService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.countryService.findOne(+id);
-  }
-
- */
 }

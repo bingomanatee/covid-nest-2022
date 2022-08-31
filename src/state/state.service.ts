@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { CreateCountryDto } from './dto/create-country.dto';
-import { UpdateCountryDto } from './dto/update-country.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import dayjs from 'dayjs';
 import Redis from 'ioredis';
@@ -8,8 +6,12 @@ import { Cron } from "@nestjs/schedule";
 const redis = new Redis(); // Default port is 6379
 
 @Injectable()
-export class CountryService {
+export class StateService {
   constructor(private prismaService: PrismaService) {}
+
+  remove(id: number) {
+    return `This action removes a #${id} state`;
+  }
   /*
                   * *   * * * *
                   | |   | | | |
@@ -23,21 +25,21 @@ export class CountryService {
 
   @Cron(' 0 */5  *  * * *')
   async summary(field = 'deaths') {
-    const countries = await this.prismaService.prisma.location.findMany({
+    const states = await this.prismaService.prisma.location.findMany({
       where: {
-        level: 1,
+        level: 2,
       },
     });
 
-    for (let i = 0; i < countries.length; ++i) {
-      countries[i] = await this.summarize(countries[i], field);
+    for (let i = 0; i < states.length; ++i) {
+      states[i] = await this.summarize(states[i], field);
     }
 
-    return countries;
+    return states;
   }
 
-  private async summarize(country, field) {
-    const REDIS_KEY = `${country.id}/${field}`;
+  private async summarize(state, field) {
+    const REDIS_KEY = `${state.id}/${field}`;
     const cached = await redis.get(REDIS_KEY);
     if (cached) {
       return JSON.parse(cached);
@@ -50,7 +52,7 @@ export class CountryService {
     do {
       retrieved = await this.prismaService.prisma.covid_data.findMany({
         where: {
-          location_id: country.id,
+          location_id: state.id,
           [field]: {
             gt: 0,
           },
@@ -81,7 +83,7 @@ export class CountryService {
         return list;
       }, summary);
     }
-    const out = { ...country, [field]: summary, start };
+    const out = { ...state, [field]: summary, start };
     redis.set(REDIS_KEY, JSON.stringify(out), 'PX', 100 * 60 * 1000);
     return out;
   }
