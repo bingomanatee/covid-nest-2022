@@ -27,3 +27,5 @@ export function asFloat(value) {
 export function asString(value) {
   return `${value}`;
 }
+
+export const HOURS_IN_MS = 60 * 60 * 1000;

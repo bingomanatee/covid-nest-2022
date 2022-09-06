@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import dayjs from 'dayjs';
 import Redis from 'ioredis';
 import { Cron } from "@nestjs/schedule";
+import { HOURS_IN_MS } from "../utils";
 const redis = new Redis(); // Default port is 6379
 
 @Injectable()
@@ -82,7 +83,7 @@ export class CountryService {
       }, summary);
     }
     const out = { ...country, [field]: summary, start };
-    redis.set(REDIS_KEY, JSON.stringify(out), 'PX', 100 * 60 * 1000);
+    redis.set(REDIS_KEY, JSON.stringify(out), 'PX', HOURS_IN_MS * 8);
     return out;
   }
 }
