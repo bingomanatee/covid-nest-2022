@@ -11,7 +11,7 @@ datasource db {
 }
 
 model location {
-  id           String       @id @default(uuid())
+  id           String        @id @default(uuid())
   level        Int
   name         String
   iso3         String
@@ -23,8 +23,18 @@ model location {
   population   Int?
   hindexes     String[]
   data         covid_data[]
+  shape_states shape_state[]
 
   @@unique([id, level])
+}
+
+model shape_state {
+  iso3        String
+  name        String
+  location    location @relation(fields: [location_id], references: [id])
+  location_id String
+
+  @@unique([iso3, name, location_id])
 }
 
 model covid_data {
@@ -34,6 +44,7 @@ model covid_data {
   deaths      Int?
   hosp        Int?
   location    location @relation(fields: [location_id], references: [id])
+
   @@unique([location_id, date])
 }
 

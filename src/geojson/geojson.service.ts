@@ -5,7 +5,7 @@ const redis = new Redis(); // Default port is 6379
 import fs from "fs";
 import path from "path";
 import { PrismaService } from "../prisma/prisma.service";
-import _ from 'lodash';
+import _ from "lodash";
 
 const COUNTRY_KEY = "geojson/country";
 const STATE_KEY = "geojson/state";
@@ -26,7 +26,7 @@ export class GeojsonService {
 
   async state() {
     const hasGeoJson = await redis.exists(STATE_KEY);
-    if (true || !hasGeoJson) {
+    if (!hasGeoJson) {
       await this.genState();
     }
     const states = await redis.get(STATE_KEY);
@@ -74,7 +74,6 @@ export class GeojsonService {
       where: {
         level: 2
       },
-      select: { iso3: true, admin2: true, population: true, latitude: true, longitude: true },
       orderBy: [
         {
           iso3: "asc"
@@ -82,31 +81,37 @@ export class GeojsonService {
         {
           admin2: "asc"
         }
-      ]
+      ],
+      include: {
+        shape_states: true
+      }
     });
-    console.log("state locations:", stateAdmin2names.length);
+
     const iso3map = stateAdmin2names.reduce((map, data) => {
       map.set(`${data.iso3} ${data.admin2}`, data);
+      data.shape_states.forEach(shapeState => {
+        map.set(`${shapeState.iso3} ${shapeState.name}`, data);
+      })
       return map;
     }, new Map());
 
-    json.features = _.sortBy(json.features, "properties.adm0_a3", "properties.name")
-      .filter((feature) => {
-        const { adm0_a3, name } = feature.properties;
-        if (iso3map.has(`${adm0_a3} ${name}`)) {
-          return true;
-        } else {
-          console.log('cannot find  STATE ', adm0_a3, name);
-          return false
-        }
-      });
+    json.features = _.sortBy(json.features, "properties.adm0_a3", "properties.name");
+    /*    .filter((feature) => {
+          const { adm0_a3, name } = feature.properties;
+          if (iso3map.has(`${adm0_a3} ${name}`)) {
+            return true;
+          } else {
+            console.log('cannot find  STATE ', adm0_a3, name);
+            return false
+          }
+        });*/
 
     json.features.forEach((feature) => {
       const { adm0_a3, name } = feature.properties;
-      feature.properties = iso3map.get(`${adm0_a3} ${name}`)
+      feature.properties = iso3map.get(`${adm0_a3} ${name}`) || feature.properties;
     });
     await redis.set(STATE_KEY, JSON.stringify(json));
-    await redis.expire(STATE_KEY, 60 * 2);
+    await redis.expire(STATE_KEY, 60 * 60 * 4);
   }
 
   private async parseCountryFeatures(json) {
@@ -121,11 +126,11 @@ export class GeojsonService {
       return map;
     }, new Map());
 
-    json.features = json.features.filter((feature) => iso3map.has(feature.properties.ISO_A3));
+    // json.features = json.features.filter((feature) => iso3map.has(feature.properties.ISO_A3));
     json.features.forEach((feature) => {
       feature.properties = iso3map.get(feature.properties.ISO_A3);
     });
     await redis.set(COUNTRY_KEY, JSON.stringify(json));
-    await redis.expire(COUNTRY_KEY, 60 * 2);
+    await redis.expire(COUNTRY_KEY, 60 * 60 * 4);
   }
 }

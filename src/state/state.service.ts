@@ -1,17 +1,71 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import dayjs from 'dayjs';
-import Redis from 'ioredis';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import dayjs from "dayjs";
+import Redis from "ioredis";
 import { Cron } from "@nestjs/schedule";
+
 const redis = new Redis(); // Default port is 6379
+
+class Place {
+  constructor(iso3, admin2, states: string | any[] = []) {
+    let stateData = [];
+    if (typeof states === "string") {
+      stateData = [new Place(iso3, states)];
+    } else {
+      stateData = states.map((item) => {
+        return typeof item === "string" ? new Place(iso3, item) : item;
+      });
+    }
+
+    this.iso3 = iso3;
+    this.admin2 = admin2;
+    this.states = stateData;
+  }
+
+  states: Place[];
+  admin2: string;
+  iso3: string;
+}
+
+// mapping death data abbr to state data abbr
+
+const StateDeathsMap = [
+  new Place("GBR", "Northern Ireland",
+    [
+      "Antrim",
+      "Down",
+      "Armagh",
+      "Derry",
+      "Fermanagh"
+    ]
+  ),
+  new Place("PAK", "K.P.", ["Khyber Pakhtunkhwa"]),
+  new Place("PAK", "Azad Jammu and Kashmir", ["Azad Kashmir"]),
+  new Place("PAK", "Sindh", "Sind"),
+  new Place("PAK", "Balochistan", ["Baluchistan"]),
+  new Place("RUS", "Adygea Republic", "Adygey"),
+  new Place("RUS", "Amur Oblast", "Amur"),
+  new Place("RUS", "Arkhangelsk Oblast", "Arkhangel'sk"),
+  new Place("RUS", "Chechen Republic", "Chechnya"),
+  new Place("RUS", "Chelyabinsk Oblast", "Chelyabinsk"),
+  new Place("RUS", "Chukotka Autonomous Okrug", "Chukchi Autonomous Okrug"),
+  new Place("RUS", "Chuvashia Republic", "Chuvash"),
+  new Place("RUS", "Irkutsk Oblast", "Irkutsk"),
+  new Place("RUS", "Ivanovo Oblast", "Ivanovo"),
+  new Place("RUS", "Jewish Autonomous Okrug", "Amur"),
+  new Place("RUS", "Jewish Autonomous Okrug", "Amur")
+
+];
 
 @Injectable()
 export class StateService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(private prismaService: PrismaService) {
+  }
 
   remove(id: number) {
     return `This action removes a #${id} state`;
   }
+
   /*
                   * *   * * * *
                   | |   | | | |
@@ -23,12 +77,12 @@ export class StateService {
                   seconds (optional)
    */
 
-  @Cron(' 0 */5  *  * * *')
-  async summary(field = 'deaths') {
+  @Cron(" 0 */5  *  * * *")
+  async summary(field = "deaths") {
     const states = await this.prismaService.prisma.location.findMany({
       where: {
-        level: 2,
-      },
+        level: 2
+      }
     });
 
     for (let i = 0; i < states.length; ++i) {
@@ -54,18 +108,18 @@ export class StateService {
         where: {
           location_id: state.id,
           [field]: {
-            gt: 0,
-          },
+            gt: 0
+          }
         },
         take: SUM_INC,
         skip,
         select: {
           [field]: true,
-          date: true,
+          date: true
         },
         orderBy: {
-          date: 'asc',
-        },
+          date: "asc"
+        }
       });
       skip += SUM_INC;
       data = data.concat(retrieved);
@@ -75,7 +129,7 @@ export class StateService {
       const firstDay = dayjs(date);
       start = firstDay.unix();
       summary = data.reduce((list, item) => {
-        const offset = dayjs(item.date).diff(firstDay, 'd');
+        const offset = dayjs(item.date).diff(firstDay, "d");
         const value = item[field];
         while (list.length < offset) {
           list.push(value);
@@ -84,8 +138,33 @@ export class StateService {
       }, summary);
     }
     const out = { ...state, [field]: summary, start };
-    redis.set(REDIS_KEY, JSON.stringify(out), 'PX', 100 * 60 * 1000);
+    redis.set(REDIS_KEY, JSON.stringify(out), "PX", 100 * 60 * 1000);
     return out;
+  }
+
+  states() {
+    return this.prismaService.prisma.location.findMany({
+      where: {
+        level: 2
+      },
+      include: {
+        shape_states: true
+      }
+    });
+  }
+
+  async findOne(id) {
+    return this.prismaService.prisma.location.findUniqueOrThrow({
+      where: {
+        id
+      }
+    });
+  }
+
+  async alias(location_id: string, alias) {
+    return this.prismaService.prisma.shape_state.create({
+      data: { location_id, ...alias }
+    });
   }
 }
 
